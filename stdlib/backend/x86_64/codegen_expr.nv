@@ -1007,7 +1007,7 @@ def compile_expr(state: CodegenState, node: AstNode) {
             }
     }
     if node.kind == "MethodCall" {
-        method_id_map = {"append": 1, "pop": 2, "get": 3, "set": 4, "has": 5, "remove": 6, "keys": 7, "values": 8, "items": 9, "write": 10, "awrite": 11, "read": 12, "close": 13, "flush": 14}
+        method_id_map = {"append": 1, "pop": 2, "get": 3, "set": 4, "has": 5, "remove": 6, "keys": 7, "values": 8, "items": 9, "write": 10, "awrite": 11, "read": 12, "close": 13, "flush": 14, "insert": 15, "clear": 16}
         h = method_id_map.get(node.val_str)
         if h == 1 {
             compile_expr(state, node.args[0])
@@ -1172,6 +1172,20 @@ def compile_expr(state: CodegenState, node: AstNode) {
             compile_expr(state, node.left)
             emit_call(state, "_sys_flush_c", 1)
             emit(state, "    push %a")
+            return
+        }
+        if h == 15 {
+            compile_expr(state, node.args[1])
+            compile_expr(state, node.args[0])
+            compile_expr(state, node.left)
+            emit_call(state, "_list_insert", 3)
+            emit(state, "    push 0")
+            return
+        }
+        if h == 16 {
+            compile_expr(state, node.left)
+            emit_call(state, "_list_clear", 1)
+            emit(state, "    push 0")
             return
         }
         # Standard module call (e.g. errors.err)

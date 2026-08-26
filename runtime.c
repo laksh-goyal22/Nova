@@ -721,7 +721,10 @@ __asm__(".globl _sys_open_c\n.set _sys_open_c, __sys_open_c");
 __asm__(".globl _sys_platform_c\n.set _sys_platform_c, __sys_platform_c");
 __asm__(".globl _sys_read_c\n.set _sys_read_c, __sys_read_c");
 __asm__(".globl _sys_write_c\n.set _sys_write_c, __sys_write_c");
+__asm__(".globl _sys_awrite_c\n.set _sys_awrite_c, __sys_awrite_c");
 __asm__(".globl _sys_write_raw_c\n.set _sys_write_raw_c, __sys_write_raw_c");
+__asm__(".globl _list_insert\n.set _list_insert, __list_insert");
+__asm__(".globl _list_clear\n.set _list_clear, __list_clear");
 /* Non-variadic printf/sprintf — must be aliased or assembly calls resolve
  * to the system's variadic printf (which reads garbage from the register
  * save area on ARM64 AAPCS64). Only these two are aliased; other libc
@@ -1272,6 +1275,43 @@ SYSCALL void *_slice_list(void *list, int start, int end) {
         dst[i] = src[start + i];
     }
     return result;
+}
+
+/* ==================== List helpers ==================== */
+SYSCALL void _list_insert(void *list, long long idx, long long val) {
+    if (!list) return;
+    int count = *(int*)list;
+    int cap_bytes = *(int*)((char*)list + 4);
+    void *data = *(void**)((char*)list + 8);
+    if (idx < 0) idx = 0;
+    if (idx > count) idx = count;
+    int need = (count + 1) * (int)sizeof(intptr_t);
+    if (need > cap_bytes) {
+        int new_cap = cap_bytes * 2;
+        if (new_cap < need) new_cap = need;
+#if defined(_WIN32)
+        void *nd = STR_PFX(realloc)(data, (unsigned int)new_cap);
+#else
+        void *nd = realloc(data, (size_t)new_cap);
+#endif
+        if (!nd) return;
+        data = nd;
+        *(void**)((char*)list + 8) = data;
+        *(int*)((char*)list + 4) = new_cap;
+    }
+    intptr_t *arr = (intptr_t*)data;
+    for (int i = count; i > idx; i--) arr[i] = arr[i - 1];
+    arr[idx] = (intptr_t)val;
+    *(int*)list = count + 1;
+}
+
+SYSCALL void _list_clear(void *list) {
+    if (!list) return;
+    *(int*)list = 0;
+}
+
+SYSCALL void _sys_awrite_c(long long fd, const char *str) {
+    _sys_write_c(fd, str);
 }
 
 /* ==================== Built-in math and file functions ==================== */

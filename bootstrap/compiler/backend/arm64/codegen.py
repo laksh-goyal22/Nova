@@ -476,6 +476,9 @@ class Arm64Codegen:
         self.assembly.append(".extern _now")
         self.assembly.append(".extern _str_sub")
         self.assembly.append(".extern _slice_list")
+        self.assembly.append(".extern _list_insert")
+        self.assembly.append(".extern _list_clear")
+        self.assembly.append(".extern _sys_awrite_c")
         self.assembly.append(".extern _call")
         self.assembly.append(".extern _try_catch_sp")
         self.assembly.append(".extern _catch_ip")
@@ -1326,6 +1329,26 @@ class Arm64Codegen:
                 self.compile_expr(node.instance)
                 self.assembly.append("    ldr x0, [sp], #16")
                 self.assembly.append("    bl _fflush")
+            elif node.method_name == "insert":
+                val_reg = self._compile_expr_to_reg(node.args[1])
+                idx_reg = self._compile_expr_to_reg(node.args[0])
+                lst_reg = self._compile_expr_to_reg(node.instance)
+                self.assembly.append(f"    str {val_reg}, [sp, #-16]!")
+                self.assembly.append(f"    str {idx_reg}, [sp, #-16]!")
+                self.assembly.append(f"    str {lst_reg}, [sp, #-16]!")
+                self._free_reg(val_reg)
+                self._free_reg(idx_reg)
+                self._free_reg(lst_reg)
+                self.assembly.append("    ldr x0, [sp], #16")
+                self.assembly.append("    ldr x1, [sp], #16")
+                self.assembly.append("    ldr x2, [sp], #16")
+                self.assembly.append("    bl _list_insert")
+                self.assembly.append("    str xzr, [sp, #-16]!")
+            elif node.method_name == "clear":
+                self.compile_expr(node.instance)
+                self.assembly.append("    ldr x0, [sp], #16")
+                self.assembly.append("    bl _list_clear")
+                self.assembly.append("    str xzr, [sp, #-16]!")
             elif node.method_name in ("get", "has", "set", "remove", "keys", "values", "items"):
                 # Use _compile_expr_to_reg for args+instance to avoid sp-relative corruption
                 for arg in node.args:

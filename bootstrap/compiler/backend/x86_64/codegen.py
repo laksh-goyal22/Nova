@@ -221,6 +221,9 @@ class X86_64Codegen:
             self.assembly.append(f".extern {b_sym}")
 
         self.assembly.append(".extern _slice_list")
+        self.assembly.append(".extern _list_insert")
+        self.assembly.append(".extern _list_clear")
+        self.assembly.append(".extern _sys_awrite_c")
         self.assembly.append(".extern _try_catch_sp")
         self.assembly.append(".extern _catch_ip")
         self.assembly.append(".extern _exception_val")
@@ -1404,6 +1407,24 @@ class X86_64Codegen:
                 self.assembly.append("    sub rsp, 32")
                 self.assembly.append("    call _fflush")
                 self.assembly.append("    add rsp, 32")
+            elif node.method_name == "insert":
+                self.compile_expr(node.args[1])
+                self.compile_expr(node.args[0])
+                self.compile_expr(node.instance)
+                self.assembly.append("    pop rdi")
+                self.assembly.append("    pop rsi")
+                self.assembly.append("    pop rdx")
+                self.assembly.append("    sub rsp, 32")
+                self.assembly.append("    call _list_insert")
+                self.assembly.append("    add rsp, 32")
+                self.assembly.append("    push 0")
+            elif node.method_name == "clear":
+                self.compile_expr(node.instance)
+                self.assembly.append("    pop rdi")
+                self.assembly.append("    sub rsp, 32")
+                self.assembly.append("    call _list_clear")
+                self.assembly.append("    add rsp, 32")
+                self.assembly.append("    push 0")
             elif node.method_name in ("get", "has", "set", "remove", "keys", "values", "items"):
                 for arg in node.args:
                     self.compile_expr(arg)
