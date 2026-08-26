@@ -41,7 +41,7 @@ def flush() {
     os_impl.sys_flush()
 }
 
-def get_args() -> list {
+def get_args() -> list[string] {
     return os_impl.sys_get_args()
 }
 

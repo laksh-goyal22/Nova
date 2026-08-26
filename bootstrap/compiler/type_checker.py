@@ -317,6 +317,18 @@ class TypeInferer:
         return AnyType()
 
     def visit_MethodCall(self, node):
+        # Module-scope function call (e.g. system.get_args()): resolve the
+        # declared return type so typed results flow downstream (list[string], ...)
+        if isinstance(node.instance, Variable):
+            func = self.functions.get(node.method_name)
+            if func is not None:
+                if len(node.args) != len(func.params):
+                    raise StaticTypeError(f"Function {node.method_name} expects {len(func.params)} args, got {len(node.args)}", node.line,
+                        f"add or remove arguments to match the function signature — expected {len(func.params)}, got {len(node.args)}")
+                for arg, param_type in zip(node.args, func.params):
+                    arg_t = self.visit(arg)
+                    self.unify(param_type, arg_t, arg)
+                return func.ret
         inst_t = self.visit(node.instance)
         for arg in node.args:
             self.visit(arg)

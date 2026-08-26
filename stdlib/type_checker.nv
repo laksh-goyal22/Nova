@@ -425,6 +425,26 @@ def tc_visit_real(tc: TypeChecker, node: AstNode) -> Type {
     }
     
     if h == 17 {
+        # Module-scope function call (e.g. system.get_args()): resolve the
+        # declared return type so list[string]-typed results flow downstream.
+        if node.left.kind == "Variable" {
+            mfunc = tc_find_func(tc, node.val_str)
+            if mfunc != 0 {
+                i = 0
+                n = len(node.args)
+                if len(mfunc.params) < n { n = len(mfunc.params) }
+                while i < n {
+                    arg_t = tc_visit(tc, node.args[i])
+                    tc_unify(tc, mfunc.params[i], arg_t, node.args[i])
+                    i = i + 1
+                }
+                while i < len(node.args) {
+                    tc_visit(tc, node.args[i])
+                    i = i + 1
+                }
+                if mfunc.ret != 0 { return mfunc.ret }
+            }
+        }
         tc_visit(tc, node.left)
         i = 0
         while i < len(node.args) {

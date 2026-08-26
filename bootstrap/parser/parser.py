@@ -21,10 +21,10 @@ class Parser:
         else:
             return ""
             
-        if self.current() and self.current()[0] == "LBRACKET":
-            self.eat("LBRACKET")
+        if self.current() and self.current()[0] == "LBRACK":
+            self.eat("LBRACK")
             inner_type = self.parse_type_annotation()
-            self.eat("RBRACKET")
+            self.eat("RBRACK")
             return f"{type_name}[{inner_type}]"
             
         return type_name

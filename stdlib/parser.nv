@@ -784,10 +784,10 @@ def parse_type_annotation(state: ParserState) -> string {
     }
     
     tok = current_tok(state)
-    if tok.kind == "LBRACKET" {
-        eat_tok(state, "LBRACKET")
+    if tok.kind == "LBRACK" {
+        eat_tok(state, "LBRACK")
         inner_type = parse_type_annotation(state)
-        eat_tok(state, "RBRACKET")
+        eat_tok(state, "RBRACK")
         return type_name + "[" + inner_type + "]"
     }
     return type_name

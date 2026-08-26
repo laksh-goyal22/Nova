@@ -227,3 +227,32 @@ def test_full_file():
     assert "=== FORLOOP ===" in out
     assert "=== LEN ===" in out
     assert "=== TRY ===" in out
+
+
+# --- Type inference regression tests ---
+
+from nova_ast.nodes import Variable, MethodCall, Number
+from compiler.types import FuncType, StringType, IntType, AnyType
+
+
+def test_method_call_module_function_resolves_return_type():
+    """Module-scope function calls (e.g. system.get_args()) must resolve to the
+    declared return type, not Any. Regression: self-hosted compiler called
+    len(exe_path) on get_args()[0] but treated the string as a list because
+    MethodCall always returned AnyType()."""
+    inf = TypeInferer()
+    inf.functions["get_args"] = FuncType([], StringType)
+    call = MethodCall(Variable("system", line=1), "get_args", [], line=1)
+    t = inf.visit(call)
+    assert not isinstance(t, AnyType), f"method call resolved to AnyType: {t}"
+    assert t == StringType, f"expected string, got {t}"
+
+
+def test_method_call_module_function_unifies_args():
+    """A module-scope function with parameters must check arg compatibility."""
+    inf = TypeInferer()
+    inf.functions["take"] = FuncType([IntType], IntType)
+    call = MethodCall(Variable("m", line=1), "take", [Number(7, line=1)], line=1)
+    t = inf.visit(call)
+    assert not isinstance(t, AnyType)
+    assert t == IntType
