@@ -479,6 +479,10 @@ class Arm64Codegen:
         self.assembly.append(".extern _list_insert")
         self.assembly.append(".extern _list_clear")
         self.assembly.append(".extern _sys_awrite_c")
+        self.assembly.append(".extern _random")
+        self.assembly.append(".extern _random_range")
+        self.assembly.append(".extern _chacha20_init")
+        self.assembly.append(".extern _api_open_internal")
         self.assembly.append(".extern _call")
         self.assembly.append(".extern _try_catch_sp")
         self.assembly.append(".extern _catch_ip")
@@ -509,6 +513,15 @@ class Arm64Codegen:
             self.data_section.append(f"    .byte 0")
 
         functions = [node for node in self.ast if isinstance(node, Function)]
+        class_method_list = []
+        for node in self.ast:
+            if isinstance(node, ClassDef):
+                for m in node.methods:
+                    m._mangled = f"{node.name}_{m.name}"
+                    m._class_name = node.name
+                    class_method_list.append(m)
+                    functions.append(m)
+
         top_level = [node for node in self.ast if not isinstance(node, Function) and not isinstance(node, Import) and not isinstance(node, ClassDef) and not isinstance(node, Data)]
 
         self.func_returns = {}
@@ -522,9 +535,18 @@ class Arm64Codegen:
                     self.get_prop_offset(field_name)
             elif isinstance(n, Function):
                 self.func_returns[n.name] = n.return_type
+        for m in class_method_list:
+            self.func_returns[m._mangled] = m.return_type
+            self.func_returns[f"{m._class_name}.{m.name}"] = m.return_type
 
         for fn in functions:
-            self.compile_function(fn)
+            if hasattr(fn, '_mangled'):
+                orig = fn.name
+                fn.name = fn._mangled
+                self.compile_function(fn)
+                fn.name = orig
+            else:
+                self.compile_function(fn)
 
         entry = "_main" if self.target_os != "linux" else "main"
         self.assembly.append(f"{entry}:")
@@ -1046,6 +1068,17 @@ class Arm64Codegen:
             else:
                 self._emit_fp_access(self.assembly, "ldr", "x0", -offset)
             self.assembly.append("    str x0, [sp, #-16]!")
+        elif isinstance(node, Self):
+            if "self" in self.local_vars:
+                offset = self.local_vars["self"]
+                if isinstance(offset, str):
+                    self.assembly.append(f"    mov x0, {offset}")
+                else:
+                    self._emit_fp_access(self.assembly, "ldr", "x0", -offset)
+                self.assembly.append("    str x0, [sp, #-16]!")
+            else:
+                self.assembly.append("    mov x0, #0")
+                self.assembly.append("    str x0, [sp, #-16]!")
         elif isinstance(node, BinOp):
             reg = self._compile_binop_to_reg(node)
             self.assembly.append(f"    str {reg}, [sp, #-16]!")
@@ -1070,6 +1103,42 @@ class Arm64Codegen:
                 self.assembly.append(f"    adrp x0, {label}@PAGE")
                 self.assembly.append(f"    add x0, x0, {label}@PAGEOFF")
                 self.assembly.append("    str x0, [sp, #-16]!")
+            elif node.name == "random":
+                if len(node.args) == 2:
+                    r1 = self._compile_expr_to_reg(node.args[1])
+                    r0 = self._compile_expr_to_reg(node.args[0])
+                    self.assembly.append(f"    str {r1}, [sp, #-16]!")
+                    self.assembly.append(f"    str {r0}, [sp, #-16]!")
+                    self._free_reg(r1); self._free_reg(r0)
+                    self.assembly.append("    ldr x0, [sp], #16")
+                    self.assembly.append("    ldr x1, [sp], #16")
+                    self.assembly.append("    bl _random_range")
+                    self.assembly.append("    str x0, [sp, #-16]!")
+                elif len(node.args) == 1:
+                    r0 = self._compile_expr_to_reg(node.args[0])
+                    self.assembly.append(f"    str {r0}, [sp, #-16]!")
+                    self._free_reg(r0)
+                    self.assembly.append("    ldr x1, [sp], #16")
+                    self.assembly.append("    mov x0, #0")
+                    self.assembly.append("    bl _random_range")
+                    self.assembly.append("    str x0, [sp, #-16]!")
+                else:
+                    self.assembly.append("    bl _random")
+                    self.assembly.append("    str x0, [sp, #-16]!")
+            elif node.name == "chacha20_init":
+                regs = []
+                for arg in reversed(node.args):
+                    r = self._compile_expr_to_reg(arg)
+                    regs.append(r)
+                for r in regs:
+                    self.assembly.append(f"    str {r}, [sp, #-16]!")
+                    self._free_reg(r)
+                if len(node.args) >= 1:
+                    self.assembly.append("    ldr x0, [sp], #16")
+                if len(node.args) >= 2:
+                    self.assembly.append("    ldr x1, [sp], #16")
+                self.assembly.append("    bl _chacha20_init")
+                self.assembly.append("    str xzr, [sp, #-16]!")
             elif node.name in self.struct_defs:
                 struct_size = len(self.struct_defs[node.name].fields) * 8
                 struct_size = max(struct_size, 16)
@@ -1184,6 +1253,11 @@ class Arm64Codegen:
                 self.assembly.append(f"{oob_lbl}:")
                 self.assembly.append("    b _out_of_bounds")
                 self.assembly.append(f"{after_lbl}:")
+        elif isinstance(node, ApiRequest):
+            self.compile_expr(node.url)
+            self.assembly.append("    ldr x0, [sp], #16")
+            self.assembly.append("    bl _api_open_internal")
+            self.assembly.append("    str x0, [sp, #-16]!")
         elif isinstance(node, Openf):
             self.assembly.append("    mov x0, #24")
             self.assembly.append("    bl _malloc")

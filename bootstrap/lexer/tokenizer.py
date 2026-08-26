@@ -31,7 +31,7 @@ KEYWORDS = {
     "switch": "SWITCH", "case": "CASE", "try": "TRY",
     "catch": "CATCH", "throw": "THROW",
     "int": "TYPE_INT", "float": "TYPE_FLOAT", "bool": "TYPE_BOOL",
-    "string": "TYPE_STRING", "const": "CONST", "enum": "ENUM",
+    "string": "TYPE_STRING", "byte": "TYPE_BYTE", "void": "TYPE_VOID", "const": "CONST", "enum": "ENUM",
     "str": "STR",
     "@raw": "RAW", "@export": "EXPORT",
 }

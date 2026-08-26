@@ -1214,6 +1214,31 @@ def compile_expr(state: CodegenState, node: AstNode) {
             push_data_label(state, "str_type_" + type_str)
             return
         }
+
+        if node.val_str == "random" {
+            if len(node.args) == 2 {
+                compile_expr(state, node.args[1])
+                compile_expr(state, node.args[0])
+                emit_call(state, "_random_range", 2)
+            } else {
+                if len(node.args) == 1 { compile_expr(state, node.args[0]) }
+                emit_call(state, "_random", len(node.args))
+            }
+            emit(state, "    str %a, [sp, #-16]!")
+            return
+        }
+
+        if node.val_str == "chacha20_init" {
+            idx_arg = len(node.args) - 1
+            while idx_arg >= 0 {
+                compile_expr(state, node.args[idx_arg])
+                idx_arg = idx_arg - 1
+            }
+            emit_call(state, "_chacha20_init", len(node.args))
+            emit(state, "    mov %a, 0")
+            emit(state, "    str %a, [sp, #-16]!")
+            return
+        }
         
         is_struct = 0
         struct_size = 0

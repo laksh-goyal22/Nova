@@ -677,6 +677,12 @@ class Parser:
         catch_body = self.parse_block()
         return Try(body, catch_var, catch_body, line=line)
 
+    def _eat_param_name(self):
+        tok = self.current()
+        if tok and tok[0] in ("IDENT", "SELF"):
+            return self.eat(tok[0])[1]
+        return self.eat("IDENT")[1]
+
     def parse_function(self):
         line = self.current()[2] if self.current() and len(self.current()) > 2 else 0
         self.eat("DEF")
@@ -684,7 +690,7 @@ class Parser:
         self.eat("LPAREN")
         params = []
         if self.current() and self.current()[0] != "RPAREN":
-            param_name = self.eat("IDENT")[1]
+            param_name = self._eat_param_name()
             param_type = ""
             if self.current() and self.current()[0] == "COLON":
                 self.eat("COLON")
@@ -693,7 +699,7 @@ class Parser:
 
             while self.current() and self.current()[0] == "COMMA":
                 self.eat("COMMA")
-                param_name = self.eat("IDENT")[1]
+                param_name = self._eat_param_name()
                 param_type = ""
                 if self.current() and self.current()[0] == "COLON":
                     self.eat("COLON")

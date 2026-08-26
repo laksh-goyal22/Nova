@@ -953,18 +953,43 @@ def _builtin_factorial(m, args):
         result *= i
     m.stack.append(result)
 
+_rng_state = [88172645463325252]
+_rng_seeded = [0]
+
+def _rng_next():
+    if not _rng_seeded[0]:
+        import time
+        _rng_state[0] = int(time.time() * 1000) & 0xFFFFFFFFFFFFFFFF
+        if _rng_state[0] == 0:
+            _rng_state[0] = 88172645463325252
+        _rng_seeded[0] = 1
+    x = _rng_state[0]
+    x ^= (x >> 12) & 0xFFFFFFFFFFFFFFFF
+    x ^= (x << 25) & 0xFFFFFFFFFFFFFFFF
+    x ^= (x >> 27) & 0xFFFFFFFFFFFFFFFF
+    _rng_state[0] = x
+    return (x * 2685821657736338717) & 0xFFFFFFFFFFFFFFFF
+
 def _builtin_random(m, args):
-    import random as _rng
+    r = _rng_next()
     if len(args) >= 2:
-        m.stack.append(_rng.randint(args[0], args[1]))
+        lo, hi = int(args[0]), int(args[1])
+        if hi < lo:
+            lo, hi = hi, lo
+        m.stack.append(lo + int(r % (hi - lo + 1)))
+    elif len(args) == 1:
+        hi = int(args[0])
+        m.stack.append(int(r % (hi + 1)) if hi > 0 else 0)
     else:
-        m.stack.append(_rng.randint(0, 2**31 - 1))
+        m.stack.append(int(r & 0x7fffffff))
 
 def _builtin_chacha20_init(m, args):
-    import random as _rng
-    seed1 = args[0] if len(args) > 0 else 0
-    seed2 = args[1] if len(args) > 1 else 0
-    _rng.seed((seed1 << 32) | seed2)
+    seed1 = int(args[0]) if len(args) > 0 else 0
+    seed2 = int(args[1]) if len(args) > 1 else 0
+    _rng_state[0] = ((seed1 & 0xFFFFFFFF) << 32) | (seed2 & 0xFFFFFFFF)
+    if _rng_state[0] == 0:
+        _rng_state[0] = 88172645463325252
+    _rng_seeded[0] = 1
 
 def _builtin_char_code(m, args):
     s = args[0]

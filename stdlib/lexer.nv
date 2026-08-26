@@ -80,6 +80,8 @@ def match_keyword(word: string) -> string {
         case "float" { return "TYPE_FLOAT" }
         case "bool" { return "TYPE_BOOL" }
         case "string" { return "TYPE_STRING" }
+        case "byte" { return "TYPE_BYTE" }
+        case "void" { return "TYPE_VOID" }
         else { return "IDENT" }
     }
 }

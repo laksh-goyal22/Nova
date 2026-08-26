@@ -10,6 +10,8 @@ BUILTIN_SIGS = {
     "file_size":     (IntType, [StringType]),
     "file_type":     (StringType, [StringType]),
     "now":           (StringType, []),
+    "random":        (IntType, []),
+    "chacha20_init": (AnyType(), [IntType, IntType]),
     "sys_open":      (IntType, [StringType, StringType]),
     "sys_read":      (StringType, [IntType]),
     "sys_write":     (AnyType(), [IntType, AnyType()]),
@@ -79,6 +81,9 @@ class TypeInferer:
             if (t1.name == "float" and t2.name == "int") or (t1.name == "int" and t2.name == "float"):
                 return FloatType
                 
+        # byte <-> int compatible (byte is 8-bit int)
+        if isinstance(t1, ScalarType) and isinstance(t2, ScalarType) and t1.name in ("int", "byte") and t2.name in ("int", "byte"):
+            return t1
         # Null pointer support (0 as struct/list/func pointer)
         if isinstance(t1, ScalarType) and t1.name == "int" and (isinstance(t2, StructType) or isinstance(t2, ListType) or isinstance(t2, FuncType)):
             return t2
@@ -223,6 +228,17 @@ class TypeInferer:
         return t
 
     def visit_Call(self, node):
+        if node.name == "random":
+            for arg in node.args:
+                self.visit(arg)
+            if len(node.args) == 2:
+                self.unify(IntType, self.visit(node.args[0]), node)
+                self.unify(IntType, self.visit(node.args[1]), node)
+            return IntType
+        if node.name == "chacha20_init":
+            for arg in node.args:
+                self.visit(arg)
+            return AnyType()
         # Function types
         if node.name in self.functions:
             func_type = self.functions[node.name]

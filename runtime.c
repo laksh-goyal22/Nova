@@ -725,6 +725,10 @@ __asm__(".globl _sys_awrite_c\n.set _sys_awrite_c, __sys_awrite_c");
 __asm__(".globl _sys_write_raw_c\n.set _sys_write_raw_c, __sys_write_raw_c");
 __asm__(".globl _list_insert\n.set _list_insert, __list_insert");
 __asm__(".globl _list_clear\n.set _list_clear, __list_clear");
+__asm__(".globl _random\n.set _random, __random");
+__asm__(".globl _random_range\n.set _random_range, __random_range");
+__asm__(".globl _chacha20_init\n.set _chacha20_init, __chacha20_init");
+__asm__(".globl _api_open_internal\n.set _api_open_internal, __api_open_internal");
 /* Non-variadic printf/sprintf — must be aliased or assembly calls resolve
  * to the system's variadic printf (which reads garbage from the register
  * save area on ARM64 AAPCS64). Only these two are aliased; other libc
@@ -1402,6 +1406,46 @@ SYSCALL char *_now(void) {
     strftime(buf, 32, "%Y-%m-%d %H:%M:%S", lt);
 #endif
     return buf;
+}
+
+/* ==================== PRNG (xorshift64) ==================== */
+static unsigned long long _rng_state = 0;
+static int _rng_seeded = 0;
+
+static unsigned long long _rng_next(void) {
+    if (!_rng_seeded) {
+        _rng_state = (unsigned long long)_sys_get_tick_count_c();
+        if (_rng_state == 0) _rng_state = 88172645463325252ULL;
+        _rng_seeded = 1;
+    }
+    unsigned long long x = _rng_state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    _rng_state = x;
+    return x * 2685821657736338717ULL;
+}
+
+SYSCALL int _random(void) {
+    return (int)(_rng_next() & 0x7fffffff);
+}
+
+SYSCALL int _random_range(int lo, int hi) {
+    if (hi < lo) { int t = lo; lo = hi; hi = t; }
+    unsigned long long r = _rng_next();
+    unsigned long long range = (unsigned long long)(hi - lo + 1);
+    return lo + (int)(r % range);
+}
+
+SYSCALL void _chacha20_init(int seed1, int seed2) {
+    _rng_state = ((unsigned long long)(unsigned int)seed1 << 32) | (unsigned int)seed2;
+    if (_rng_state == 0) _rng_state = 88172645463325252ULL;
+    _rng_seeded = 1;
+}
+
+SYSCALL void *_api_open_internal(const char *url) {
+    (void)url;
+    return 0;
 }
 
 /* _call(name, args, num_args) — dynamic dispatch stub; native codegen never emits this */
