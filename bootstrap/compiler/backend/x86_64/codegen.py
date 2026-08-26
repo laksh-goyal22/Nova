@@ -1440,6 +1440,14 @@ class X86_64Codegen:
                 call_node = Call(node.method_name, node.args)
                 call_node.line = node.line
                 self.compile_expr(call_node)
+        elif isinstance(node, SizeOf):
+            sz = 8
+            t = getattr(node.target, 'inferred_type', None)
+            if t and getattr(t, 'name', None) and t.name in self.struct_defs:
+                sz = max(len(self.struct_defs[t.name].fields) * 8, 8)
+            elif isinstance(node.target, Variable) and node.target.name in self.struct_defs:
+                sz = max(len(self.struct_defs[node.target.name].fields) * 8, 8)
+            self.assembly.append(f"    push {sz}")
         elif isinstance(node, Len):
             if self._is_string_expr(node.target):
                 self.compile_expr(node.target)

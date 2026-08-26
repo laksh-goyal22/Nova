@@ -1369,6 +1369,17 @@ class Arm64Codegen:
                 call_node = Call(node.method_name, node.args)
                 call_node.line = node.line
                 self.compile_expr(call_node)
+        elif isinstance(node, SizeOf):
+            sz = 8
+            t = getattr(node.target, 'inferred_type', None)
+            if t and getattr(t, 'name', None) and t.name in self.struct_defs:
+                sz = max(len(self.struct_defs[t.name].fields) * 8, 8)
+            elif isinstance(node.target, Variable) and node.target.name in self.struct_defs:
+                sz = max(len(self.struct_defs[node.target.name].fields) * 8, 8)
+            self.assembly.append(f"    movz x0, #{sz & 0xFFFF}")
+            if sz > 0xFFFF:
+                self.assembly.append(f"    movk x0, #{(sz >> 16) & 0xFFFF}, lsl #16")
+            self.assembly.append("    str x0, [sp, #-16]!")
         elif isinstance(node, Len):
             self.compile_expr(node.target)
             self.assembly.append("    ldr x0, [sp], #16")

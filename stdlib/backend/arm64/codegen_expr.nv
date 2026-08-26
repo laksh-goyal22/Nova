@@ -301,6 +301,20 @@ def compile_leaf_to_reg(state: CodegenState, node: AstNode, reg_name: string) {
 }
 
 def compile_expr(state: CodegenState, node: AstNode) {
+    if node.kind == "SizeOf" {
+        sz = 8
+        if node.left != 0 and node.left.inferred_type != 0 and node.left.inferred_type.kind == "struct" {
+            sname = node.left.inferred_type.name
+            i = 0
+            while i < len(state.struct_names) {
+                if state.struct_names[i] == sname { sz = state.struct_sizes[i] }
+                i = i + 1
+            }
+        }
+        emit(state, "    mov %a, " + str(sz))
+        emit(state, "    str %a, [sp, #-16]!")
+        return
+    }
     if node.kind == "Block" {
         i = 0
         while i < len(node.body) {
