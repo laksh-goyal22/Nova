@@ -402,7 +402,6 @@ SYSCALL void _exit(int c) { exit(c); }
  * the Mach-O underscore gap for the codegen's `bl _realloc`. */
 #if defined(MACOS)
 #include <dlfcn.h>
-/* Last realloc call site (for symbol resolution at crash time). */
 static void *_last_realloc_from = 0;
 static void *_diag_real_realloc(void *p, size_t s) {
     static void *(*fn)(void *, size_t) = 0;
@@ -412,12 +411,6 @@ static void *_diag_real_realloc(void *p, size_t s) {
 SYSCALL void *_realloc(void *p, size_t s) {
     void *r = _diag_real_realloc(p, s);
     _last_realloc_from = __builtin_return_address(0);
-    FILE *f = fopen("nova_diag.txt", "a");
-    if (f) {
-        fprintf(f, "R: p=%p s=%llu out=%p from=%p\n", p, (unsigned long long)s, r,
-                __builtin_return_address(0));
-        fclose(f);
-    }
     return r;
 }
 #endif /* defined(MACOS) */

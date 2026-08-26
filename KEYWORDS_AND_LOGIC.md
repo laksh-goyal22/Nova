@@ -155,9 +155,9 @@ These functions are available natively in all programs without requiring manual 
 * **`type(val)`**: Returns the type name of `val` as a string. Returns `"int"`, `"string"`, `"float"`, `"bool"`, `"list"`, `"dict"`, or `"unknown"`. In native codegen, resolved to a compile-time string constant.
 * **`call(name, args)`**: Dynamically dispatches to a function by name string. `args` is a `list[any]`. Currently works in VM mode.
 
-### Cryptographically Secure PRNG
-* **`random()`**: Returns a cryptographically secure 32-bit random integer. Uses an optimized, fully-unrolled ChaCha20 block generation algorithm. The CSPRNG is automatically initialized and seeded at startup using `sys_get_tick_count()`.
-* **`chacha20_init(seed1, seed2)`**: Manually initializes or seeds the ChaCha20 CSPRNG with specific seeds (useful for reproducible deterministic pseudorandom sequences).
+### PRNG
+* **`random()`**: Returns a 32-bit pseudorandom integer. Uses a fast xorshift64 algorithm (not CSPRNG). Automatically seeded at startup via `sys_get_tick_count()`. `random(lo, hi)` returns a value in `[lo, hi]`.
+* **`chacha20_init(seed1, seed2)`**: Seeds the PRNG with `((seed1 << 32) | seed2)` for reproducible deterministic sequences. Name retained for compatibility; currently seeds the same xorshift64 state.
 
 ---
 

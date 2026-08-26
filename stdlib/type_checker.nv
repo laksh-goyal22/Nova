@@ -615,6 +615,25 @@ def tc_check(tc: TypeChecker, ast: list) {
             func_type = create_func_type(params, ret_type)
             tc_add_func(tc, stmt.val_str, func_type)
         }
+        if stmt.kind == "ClassDef" {
+            j = 0
+            while j < len(stmt.methods) {
+                m = stmt.methods[j]
+                params = []
+                k = 0
+                while k < len(m.param_types) {
+                    params.append(resolve_type_annotation(m.param_types[k]))
+                    k = k + 1
+                }
+                ret_type = resolve_type_annotation(m.return_type)
+                func_type = create_func_type(params, ret_type)
+                full = stmt.val_str + "." + m.val_str
+                tc_add_func(tc, full, func_type)
+                mangled = stmt.val_str + "_" + m.val_str
+                tc_add_func(tc, mangled, func_type)
+                j = j + 1
+            }
+        }
         i = i + 1
     }
     
