@@ -506,6 +506,8 @@ class Compiler:
         elif isinstance(node, DataInstance):
             # DataInstance(data_name) represents creating a raw struct
             self.emit(OpCode.NEW, (node.data_name, 0))
+        elif isinstance(node, ApiRequest):
+            self.emit(OpCode.LOAD_CONST, self.add_const(0))
         elif isinstance(node, Alloc):
             self.compile_expr(node.size)
             self.emit(OpCode.ALLOC)
